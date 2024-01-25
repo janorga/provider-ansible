@@ -317,7 +317,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	/* set Deletion Policy to Orphan as we cannot observe the external resource.
 	   So we won't wait for external resource deletion before attempting
 	   to delete the managed resource */
-	cr.SetDeletionPolicy(xpv1.DeletionOrphan)
+	// cr.SetDeletionPolicy(xpv1.DeletionOrphan)
 
 	switch c.runner.GetAnsibleRunPolicy().Name {
 	case "ObserveAndDelete", "":
@@ -325,6 +325,10 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 			ansible.SetPolicyRun(cr, "ObserveAndDelete")
 		}
 		if meta.WasDeleted(cr) {
+			cond_del := cr.Status.ResourceStatus.GetCondition(xpv1.Deleting().Type)
+			if cond_del.Reason == "Deleting" {
+				return managed.ExternalObservation{ResourceExists: false}, nil
+			}
 			return managed.ExternalObservation{ResourceExists: true}, nil
 		}
 		observed := cr.DeepCopy()
