@@ -381,6 +381,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		}
 		changes := ansible.Diff(res)
 
+		cr.Status.SetConditions(xpv1.Available())
 		// At this level, the ansible cannot detect the existence or not of the external resource
 		// due to the lack of the state in the ansible technology. So we consider that the externl resource
 		// exists and trigger post-observation step(s) based on changes returned by the ansible-runner stats
@@ -499,7 +500,7 @@ func (c *external) handleLastApplied(ctx context.Context, lastParameters *v1alph
 			return managed.ExternalObservation{}, err
 		}
 	}
-
+	desired.Status.SetConditions(xpv1.Available())
 	// The crossplane runtime is not aware of the external resource created by ansible content.
 	// Nothing will notify us if and when the ansible content we manage
 	// changes, so we requeue a speculative reconcile after the specified poll
