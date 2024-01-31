@@ -320,7 +320,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	cr.SetDeletionPolicy(xpv1.DeletionDelete)
 
 	switch c.runner.GetAnsibleRunPolicy().Name {
-	case "ObserveAndDelete", "":
+	case "ObserveAndDelete", "ForcedObserveDelete", "":
 		if c.runner.GetAnsibleRunPolicy().Name == "" {
 			ansible.SetPolicyRun(cr, "ObserveAndDelete")
 		}
@@ -358,7 +358,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		if err != nil {
 			return managed.ExternalObservation{}, fmt.Errorf("%s: %w", errGetLastApplied, err)
 		}
-		return c.handleLastApplied(ctx, lastParameters, cr)
+		return c.handleLastApplied(ctx, lastParameters, cr, c.runner.GetAnsibleRunPolicy().Name)
 	case "CheckWhenObserve":
 		stateVar := make(map[string]string)
 		stateVar["state"] = "present"
@@ -465,7 +465,7 @@ func getLastAppliedParameters(observed *v1alpha1.AnsibleRun) (*v1alpha1.AnsibleR
 
 // nolint: gocyclo
 // TODO reduce cyclomatic complexity
-func (c *external) handleLastApplied(ctx context.Context, lastParameters *v1alpha1.AnsibleRunParameters, desired *v1alpha1.AnsibleRun) (managed.ExternalObservation, error) {
+func (c *external) handleLastApplied(ctx context.Context, lastParameters *v1alpha1.AnsibleRunParameters, desired *v1alpha1.AnsibleRun, runPolicyName string) (managed.ExternalObservation, error) {
 	isUpToDate := false
 	if lastParameters != nil {
 		if equality.Semantic.DeepEqual(*lastParameters, desired.Spec.ForProvider) {
@@ -487,6 +487,25 @@ func (c *external) handleLastApplied(ctx context.Context, lastParameters *v1alph
 		if err := c.kube.Update(ctx, desired); err != nil {
 			return managed.ExternalObservation{}, err
 		}
+		stateVar := make(map[string]string)
+		stateVar["state"] = "present"
+		nestedMap := make(map[string]interface{})
+		nestedMap[desired.GetName()] = stateVar
+		if err := c.runner.WriteExtraVar(nestedMap); err != nil {
+			return managed.ExternalObservation{}, err
+		}
+		dc, _, err := c.runner.Run()
+		if err != nil {
+			desired.Status.SetConditions(xpv1.Unavailable())
+			return managed.ExternalObservation{}, err
+		}
+		if err = dc.Wait(); err != nil {
+			desired.Status.SetConditions(xpv1.Unavailable())
+			return managed.ExternalObservation{}, err
+		}
+	}
+
+	if isUpToDate && runPolicyName == "ForcedObserveDelete" {
 		stateVar := make(map[string]string)
 		stateVar["state"] = "present"
 		nestedMap := make(map[string]interface{})
