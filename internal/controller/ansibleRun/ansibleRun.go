@@ -320,7 +320,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	cr.SetDeletionPolicy(xpv1.DeletionDelete)
 
 	switch c.runner.GetAnsibleRunPolicy().Name {
-	case "ObserveAndDelete", "ForcedObserveDelete", "":
+	case "ObserveAndDelete", "ForcedObserveAndDelete", "":
 		if c.runner.GetAnsibleRunPolicy().Name == "" {
 			ansible.SetPolicyRun(cr, "ObserveAndDelete")
 		}
@@ -505,7 +505,7 @@ func (c *external) handleLastApplied(ctx context.Context, lastParameters *v1alph
 		}
 	}
 
-	if isUpToDate && runPolicyName == "ForcedObserveDelete" {
+	if isUpToDate && runPolicyName == "ForcedObserveAndDelete" {
 		stateVar := make(map[string]string)
 		stateVar["state"] = "present"
 		nestedMap := make(map[string]interface{})
