@@ -404,7 +404,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
-	_, ok := mg.(*v1alpha1.AnsibleRun)
+	cr, ok := mg.(*v1alpha1.AnsibleRun)
 	if !ok {
 		return managed.ExternalUpdate{}, errors.New(errNotAnsibleRun)
 	}
@@ -413,9 +413,11 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	c.runner.EnableCheckMode(false)
 	dc, _, err := c.runner.Run()
 	if err != nil {
+		cr.Status.SetConditions(xpv1.Unavailable())
 		return managed.ExternalUpdate{}, err
 	}
 	if err = dc.Wait(); err != nil {
+		cr.Status.SetConditions(xpv1.Unavailable())
 		return managed.ExternalUpdate{}, err
 	}
 
@@ -494,9 +496,11 @@ func (c *external) handleLastApplied(ctx context.Context, lastParameters *v1alph
 		}
 		dc, _, err := c.runner.Run()
 		if err != nil {
+			desired.Status.SetConditions(xpv1.Unavailable())
 			return managed.ExternalObservation{}, err
 		}
 		if err = dc.Wait(); err != nil {
+			desired.Status.SetConditions(xpv1.Unavailable())
 			return managed.ExternalObservation{}, err
 		}
 	}
