@@ -86,6 +86,7 @@ func newRunPolicy(rPolicy string) (*RunPolicy, error) {
 		if rPolicy == "" {
 			rPolicy = "ObserveAndDelete"
 		}
+	case "ForcedObserveAndDelete":
 	case "CheckWhenObserve":
 	default:
 		return nil, fmt.Errorf("run policy %q not supported", rPolicy)
